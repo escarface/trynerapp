@@ -11,7 +11,7 @@ import { useAuthStore } from '../store/authStore';
 
 export const LoginScreen = () => {
   const navigation = useNavigation();
-  const { login, setLoading } = useAuthStore();
+  const { login, setLoading, isLoading } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -163,6 +163,8 @@ export const LoginScreen = () => {
             title="Iniciar Sesión"
             variant="primary"
             fullWidth
+            loading={isLoading}
+            disabled={isLoading}
             onPress={handleLogin}
             style={styles.loginButton}
           />

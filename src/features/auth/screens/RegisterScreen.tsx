@@ -11,7 +11,7 @@ import { useAuthStore } from '../store/authStore';
 
 export const RegisterScreen = () => {
   const navigation = useNavigation();
-  const { login, setLoading } = useAuthStore();
+  const { login, setLoading, isLoading } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -268,8 +268,9 @@ export const RegisterScreen = () => {
             title="Crear cuenta"
             variant="primary"
             fullWidth
+            loading={isLoading}
+            disabled={!acceptedTerms || isLoading}
             onPress={handleRegister}
-            disabled={!acceptedTerms}
             style={styles.registerButton}
           />
         </Animated.View>
