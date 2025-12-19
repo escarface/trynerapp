@@ -16,8 +16,16 @@ export type TextVariant =
   | 'label'
   | 'caption'
   | 'overline'
+  | 'counterHero'
+  | 'counterLarge'
+  | 'scoreLarge'
+  | 'scoreDisplay'
+  | 'metric'
+  | 'metricSmall'
   | 'button'
-  | 'metricSmall';
+  | 'buttonLarge'
+  | 'buttonSmall'
+  | 'link';
 
 export type TextColor = 'primary' | 'secondary' | 'tertiary' | 'error' | 'success' | 'warning';
 
@@ -61,8 +69,16 @@ const styles = StyleSheet.create({
   label: typography.label,
   caption: typography.caption,
   overline: typography.overline,
-  button: typography.button,
+  counterHero: typography.counterHero,
+  counterLarge: typography.counterLarge,
+  scoreLarge: typography.scoreLarge,
+  scoreDisplay: typography.scoreDisplay,
+  metric: typography.metric,
   metricSmall: typography.metricSmall,
+  button: typography.button,
+  buttonLarge: typography.buttonLarge,
+  buttonSmall: typography.buttonSmall,
+  link: typography.link,
 
   // Color variants
   color_primary: {
