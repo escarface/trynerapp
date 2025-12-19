@@ -224,6 +224,69 @@ export const emailExists = async (email: string): Promise<boolean> => {
   return user !== null;
 };
 
+/**
+ * Update user profile (onboarding data)
+ * Maps camelCase to snake_case for database fields
+ */
+export const updateUserProfile = async (
+  userId: string,
+  updates: {
+    age?: number;
+    weight?: number;
+    height?: number;
+    fitnessLevel?: string;
+    goal?: string;
+  }
+): Promise<void> => {
+  const database = getDb();
+  const now = Date.now();
+
+  try {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    // Map camelCase to snake_case for database
+    if (updates.age !== undefined) {
+      fields.push('age = ?');
+      values.push(updates.age);
+    }
+    if (updates.weight !== undefined) {
+      fields.push('weight = ?');
+      values.push(updates.weight);
+    }
+    if (updates.height !== undefined) {
+      fields.push('height = ?');
+      values.push(updates.height);
+    }
+    if (updates.fitnessLevel !== undefined) {
+      fields.push('fitness_level = ?');
+      values.push(updates.fitnessLevel);
+    }
+    if (updates.goal !== undefined) {
+      fields.push('goal = ?');
+      values.push(updates.goal);
+    }
+
+    if (fields.length === 0) {
+      return;
+    }
+
+    fields.push('updated_at = ?');
+    values.push(now);
+    values.push(userId);
+
+    await database.runAsync(
+      `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    console.log('User profile updated successfully:', userId);
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+};
+
 // ============= EXERCISE OPERATIONS =============
 
 /**

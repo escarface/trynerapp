@@ -112,19 +112,8 @@ export const RegisterScreen = () => {
       // Auto-login after registration
       login(user);
 
-      Alert.alert(
-        '¡Cuenta creada!',
-        'Tu cuenta ha sido creada exitosamente',
-        [
-          {
-            text: 'Continuar',
-            onPress: () => {
-              // Navigate to onboarding or main app
-              // TODO: Implement onboarding flow
-            },
-          },
-        ]
-      );
+      // Navigate to onboarding
+      navigation.navigate('Onboarding' as never);
     } catch (error) {
       console.error('Registration error:', error);
       Alert.alert('Error', 'Ocurrió un error al crear la cuenta');
