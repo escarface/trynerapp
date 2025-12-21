@@ -127,7 +127,7 @@ export const LoginScreen = () => {
                 {
                   translateY: slideAnim.interpolate({
                     inputRange: [0, 50],
-                    outputRange: [0, 30],
+                    outputRange: [30, 0],
                   }),
                 },
               ],
@@ -199,7 +199,7 @@ export const LoginScreen = () => {
                 {
                   translateY: slideAnim.interpolate({
                     inputRange: [0, 50],
-                    outputRange: [0, 20],
+                    outputRange: [20, 0],
                   }),
                 },
               ],
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   },
 
   heroIcon: {
-    fontSize: 24,
+    fontSize: 48,
   },
 
   heroTitle: {

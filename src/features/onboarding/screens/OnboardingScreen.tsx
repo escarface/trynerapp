@@ -7,6 +7,10 @@ import {
   Platform,
   Vibration,
   Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -25,7 +29,8 @@ import Button from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { colors, spacing, typography } from '@/core/theme';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { updateUserProfile } from '@/core/database';
+import { updateUser } from '@/core/database';
+import { useOnboardingStore } from '@/features/onboarding/stores/onboardingStore';
 import { useNavigation } from '@react-navigation/native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -204,7 +209,7 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
       </View>
 
       <Text variant="caption" style={styles.progressText}>
-        {currentStep} of {totalSteps}
+        {currentStep} de {totalSteps}
       </Text>
     </View>
   );
@@ -212,14 +217,29 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
 
 export const OnboardingScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { updateUser, user } = useAuthStore();
+  const { updateUser: updateUserInStore, user } = useAuthStore();
+  
+  const {
+    data,
+    currentStep,
+    totalSteps,
+    updateData,
+    nextStep: storeNextStep,
+    reset,
+    // prevStep
+  } = useOnboardingStore();
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const [age, setAge] = useState('');
-  const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
-  const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(null);
-  const [goal, setGoal] = useState<Goal | null>(null);
+  // Local derived state for inputs (handling strings vs numbers)
+  const [ageInput, setAgeInput] = useState(data.age?.toString() || '');
+  const [weightInput, setWeightInput] = useState(data.weight?.toString() || '');
+  const [heightInput, setHeightInput] = useState(data.height?.toString() || '');
+
+  // Sync local input state when store data changes (e.g. if coming back)
+  useEffect(() => {
+    if (data.age) setAgeInput(data.age.toString());
+    if (data.weight) setWeightInput(data.weight.toString());
+    if (data.height) setHeightInput(data.height.toString());
+  }, [data.age, data.weight, data.height]);
 
   const slideX = useSharedValue(0);
   const opacity = useSharedValue(1);
@@ -230,11 +250,23 @@ export const OnboardingScreen: React.FC = () => {
   }));
 
   const handleNext = () => {
-    if (currentStep < 3) {
+    // Dismiss keyboard first
+    Keyboard.dismiss();
+
+    // Save current step data before moving
+    if (currentStep === 0) { // Step 0 in store is Step 1 in UI (Welcome/Basics)
+       updateData({
+         age: ageInput ? parseInt(ageInput) : undefined,
+         weight: weightInput ? parseFloat(weightInput) : undefined,
+         height: heightInput ? parseInt(heightInput) : undefined,
+       });
+    }
+
+    if (currentStep < totalSteps - 1) { // totalSteps is 5, last index is 4
       // Slide out animation
       slideX.value = withSpring(-SCREEN_WIDTH, SPRING_CONFIG);
       opacity.value = withTiming(0, { duration: 200 }, () => {
-        runOnJS(setCurrentStep)(currentStep + 1);
+        runOnJS(storeNextStep)();
         slideX.value = SCREEN_WIDTH;
         opacity.value = 0;
         slideX.value = withSpring(0, SPRING_CONFIG);
@@ -245,9 +277,36 @@ export const OnboardingScreen: React.FC = () => {
     }
   };
 
-  const handleSkip = () => {
-    // Navigate to main app
-    // In AuthNavigator, onboarding completion should redirect to main
+  const handleSkip = async () => {
+    if (!user) return;
+
+    // Dismiss keyboard first
+    Keyboard.dismiss();
+
+    try {
+      // Default values for skipped onboarding
+      const defaultData = {
+        age: undefined,
+        weight: undefined,
+        height: undefined,
+        fitness_level: 'intermediate' as const,
+        goal: 'general_health' as const,
+      };
+
+      // Update database with defaults
+      await updateUser(user.id, defaultData);
+
+      // Update AuthStore
+      updateUserInStore(defaultData);
+
+      // Reset onboarding store
+      reset();
+
+      // Navigation will happen automatically via RootNavigator
+    } catch (error) {
+      console.error('Skip onboarding error:', error);
+      Alert.alert('Error', 'No pudimos completar el proceso. Intenta de nuevo.');
+    }
   };
 
   const handleComplete = async () => {
@@ -255,13 +314,25 @@ export const OnboardingScreen: React.FC = () => {
 
     try {
       // Update database
-      await updateUserProfile(user.id, {
-        age: age ? parseInt(age) : undefined,
-        weight: weight ? parseFloat(weight) : undefined,
-        height: height ? parseInt(height) : undefined,
-        fitnessLevel: fitnessLevel || undefined,
-        goal: goal || undefined,
+      await updateUser(user.id, {
+        age: data.age,
+        weight: data.weight,
+        height: data.height,
+        fitness_level: data.fitnessLevel,
+        goal: data.goal,
       });
+      
+      // Update AuthStore
+      updateUserInStore({
+        age: data.age,
+        weight: data.weight,
+        height: data.height,
+        fitness_level: data.fitnessLevel,
+        goal: data.goal,
+      });
+
+      // Reset onboarding store for next time
+      reset();
 
       // Navigation will happen automatically via RootNavigator
       // Since isAuthenticated is true and data is saved
@@ -272,14 +343,14 @@ export const OnboardingScreen: React.FC = () => {
   };
 
   const canProceed = () => {
+    if (currentStep === 0) {
+      return ageInput.length > 0 && weightInput.length > 0 && heightInput.length > 0;
+    }
     if (currentStep === 1) {
-      return age && weight && height;
+      return data.fitnessLevel !== undefined;
     }
     if (currentStep === 2) {
-      return fitnessLevel !== null;
-    }
-    if (currentStep === 3) {
-      return goal !== null;
+      return data.goal !== undefined;
     }
     return false;
   };
@@ -288,7 +359,7 @@ export const OnboardingScreen: React.FC = () => {
     <Animated.View style={[styles.stepContainer, animatedSlideStyle]}>
       <View style={styles.stepHeader}>
         <Text variant="display" style={styles.stepTitle}>
-          Let's start with
+          Empecemos con
         </Text>
         <LinearGradient
           colors={[colors.primary[500], colors.primary[600]]}
@@ -297,44 +368,50 @@ export const OnboardingScreen: React.FC = () => {
           style={styles.titleAccent}
         >
           <Text variant="display" style={styles.stepTitleAccent}>
-            the basics
+            lo básico
           </Text>
         </LinearGradient>
       </View>
 
       <Text variant="bodyLarge" style={styles.stepDescription}>
-        We need a few details to personalize your training
+        Necesitamos algunos detalles para personalizar tu entrenamiento
       </Text>
 
       <View style={styles.inputsContainer}>
         <Input
-          label="AGE"
+          label="EDAD"
           placeholder="25"
           keyboardType="numeric"
-          value={age}
-          onChangeText={setAge}
+          value={ageInput}
+          onChangeText={setAgeInput}
           maxLength={3}
           containerStyle={styles.input}
+          returnKeyType="next"
+          blurOnSubmit={false}
         />
 
         <View style={styles.inputRow}>
           <Input
-            label="WEIGHT (KG)"
+            label="PESO (KG)"
             placeholder="70.5"
             keyboardType="decimal-pad"
-            value={weight}
-            onChangeText={setWeight}
+            value={weightInput}
+            onChangeText={setWeightInput}
             containerStyle={styles.inputHalf}
+            returnKeyType="next"
+            blurOnSubmit={false}
           />
 
           <Input
-            label="HEIGHT (CM)"
+            label="ALTURA (CM)"
             placeholder="175"
             keyboardType="numeric"
-            value={height}
-            onChangeText={setHeight}
+            value={heightInput}
+            onChangeText={setHeightInput}
             maxLength={3}
             containerStyle={styles.inputHalf}
+            returnKeyType="done"
+            onSubmitEditing={Keyboard.dismiss}
           />
         </View>
       </View>
@@ -347,10 +424,10 @@ export const OnboardingScreen: React.FC = () => {
           style={styles.dataCard}
         >
           <Text variant="caption" style={styles.dataLabel}>
-            YOUR PROFILE
+            TU PERFIL
           </Text>
           <Text variant="h2" style={styles.dataValue}>
-            {age || '--'} yrs • {weight || '--'} kg • {height || '--'} cm
+            {ageInput || '--'} años • {weightInput || '--'} kg • {heightInput || '--'} cm
           </Text>
         </LinearGradient>
       </View>
@@ -361,7 +438,7 @@ export const OnboardingScreen: React.FC = () => {
     <Animated.View style={[styles.stepContainer, animatedSlideStyle]}>
       <View style={styles.stepHeader}>
         <Text variant="display" style={styles.stepTitle}>
-          Your fitness
+          Tu nivel de
         </Text>
         <LinearGradient
           colors={[colors.success[400], colors.success[600]]}
@@ -370,43 +447,43 @@ export const OnboardingScreen: React.FC = () => {
           style={styles.titleAccent}
         >
           <Text variant="display" style={styles.stepTitleAccent}>
-            level
+            fitness
           </Text>
         </LinearGradient>
       </View>
 
       <Text variant="bodyLarge" style={styles.stepDescription}>
-        This helps us calibrate your workouts
+        Esto nos ayuda a calibrar tus entrenamientos
       </Text>
 
       <View style={styles.cardsContainer}>
         <SelectionCard
-          title="Beginner"
-          subtitle="New to fitness training"
+          title="Principiante"
+          subtitle="Nuevo en entrenamiento"
           icon="🌱"
           gradient={[colors.success[400], colors.success[500], colors.success[600]]}
-          isSelected={fitnessLevel === 'beginner'}
-          onSelect={() => setFitnessLevel('beginner')}
+          isSelected={data.fitnessLevel === 'beginner'}
+          onSelect={() => updateData({ fitnessLevel: 'beginner' })}
           delay={0}
         />
 
         <SelectionCard
-          title="Intermediate"
-          subtitle="Training consistently"
+          title="Intermedio"
+          subtitle="Entreno regularmente"
           icon="💪"
           gradient={[colors.primary[400], colors.primary[500], colors.primary[600]]}
-          isSelected={fitnessLevel === 'intermediate'}
-          onSelect={() => setFitnessLevel('intermediate')}
+          isSelected={data.fitnessLevel === 'intermediate'}
+          onSelect={() => updateData({ fitnessLevel: 'intermediate' })}
           delay={100}
         />
 
         <SelectionCard
-          title="Advanced"
-          subtitle="Athletic performance focus"
+          title="Avanzado"
+          subtitle="Enfoque en rendimiento"
           icon="🔥"
           gradient={['#FF6B35', '#FF8C42', '#FFA94D']}
-          isSelected={fitnessLevel === 'advanced'}
-          onSelect={() => setFitnessLevel('advanced')}
+          isSelected={data.fitnessLevel === 'advanced'}
+          onSelect={() => updateData({ fitnessLevel: 'advanced' })}
           delay={200}
         />
       </View>
@@ -417,7 +494,7 @@ export const OnboardingScreen: React.FC = () => {
     <Animated.View style={[styles.stepContainer, animatedSlideStyle]}>
       <View style={styles.stepHeader}>
         <Text variant="display" style={styles.stepTitle}>
-          Your training
+          Tu objetivo de
         </Text>
         <LinearGradient
           colors={['#FF6B35', '#FFA94D']}
@@ -426,43 +503,43 @@ export const OnboardingScreen: React.FC = () => {
           style={styles.titleAccent}
         >
           <Text variant="display" style={styles.stepTitleAccent}>
-            goal
+            entrenamiento
           </Text>
         </LinearGradient>
       </View>
 
       <Text variant="bodyLarge" style={styles.stepDescription}>
-        What do you want to achieve?
+        ¿Qué quieres lograr?
       </Text>
 
       <View style={styles.cardsContainer}>
         <SelectionCard
-          title="Strength"
-          subtitle="Build maximum power"
+          title="Fuerza"
+          subtitle="Desarrollar poder máximo"
           icon="🏋️"
           gradient={[colors.primary[500], colors.primary[600], '#5A3FFF']}
-          isSelected={goal === 'strength'}
-          onSelect={() => setGoal('strength')}
+          isSelected={data.goal === 'strength'}
+          onSelect={() => updateData({ goal: 'strength' })}
           delay={0}
         />
 
         <SelectionCard
-          title="Hypertrophy"
-          subtitle="Muscle growth & size"
+          title="Hipertrofia"
+          subtitle="Crecimiento muscular"
           icon="💪"
           gradient={['#9D4EDD', '#C77DFF', '#E0AAFF']}
-          isSelected={goal === 'hypertrophy'}
-          onSelect={() => setGoal('hypertrophy')}
+          isSelected={data.goal === 'hypertrophy'}
+          onSelect={() => updateData({ goal: 'hypertrophy' })}
           delay={100}
         />
 
         <SelectionCard
-          title="Endurance"
-          subtitle="Athletic conditioning"
+          title="Resistencia"
+          subtitle="Acondicionamiento atlético"
           icon="🏃"
           gradient={['#FF6B35', '#FF8C42', '#FFA94D']}
-          isSelected={goal === 'endurance'}
-          onSelect={() => setGoal('endurance')}
+          isSelected={data.goal === 'endurance'}
+          onSelect={() => updateData({ goal: 'endurance' })}
           delay={200}
         />
       </View>
@@ -471,44 +548,71 @@ export const OnboardingScreen: React.FC = () => {
 
   return (
     <Screen safeAreaEdges={['top', 'bottom']}>
-      <View style={styles.container}>
-        {/* Skip button */}
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-          <Text variant="bodySmall" style={styles.skipText}>
-            Skip
-          </Text>
-        </TouchableOpacity>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.container}>
+            {/* Skip button */}
+            <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+              <Text variant="bodySmall" style={styles.skipText}>
+                Saltar
+              </Text>
+            </TouchableOpacity>
 
-        {/* Progress indicator */}
-        <ProgressIndicator currentStep={currentStep} totalSteps={3} />
+            {/* Progress indicator */}
+            <ProgressIndicator currentStep={currentStep + 1} totalSteps={3} />
 
-        {/* Steps */}
-        <View style={styles.contentContainer}>
-          {currentStep === 1 && renderStep1()}
-          {currentStep === 2 && renderStep2()}
-          {currentStep === 3 && renderStep3()}
-        </View>
+            {/* Scrollable Steps Content */}
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollViewContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.contentContainer}>
+                {currentStep === 0 && renderStep1()}
+                {currentStep === 1 && renderStep2()}
+                {currentStep === 2 && renderStep3()}
+              </View>
+            </ScrollView>
 
-        {/* Bottom CTA */}
-        <View style={styles.ctaContainer}>
-          <Button
-            title={currentStep === 3 ? 'Start Training' : 'Continue'}
-            variant="primary"
-            size="large"
-            fullWidth
-            disabled={!canProceed()}
-            onPress={handleNext}
-          />
-        </View>
-      </View>
+            {/* Bottom CTA */}
+            <View style={styles.ctaContainer}>
+              <Button
+                title={currentStep === 2 ? 'Empezar entrenamiento' : 'Continuar'}
+                variant="primary"
+                size="large"
+                fullWidth
+                disabled={!canProceed()}
+                onPress={handleNext}
+              />
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+
   container: {
     flex: 1,
     backgroundColor: colors.neutral.background,
+  },
+
+  scrollView: {
+    flex: 1,
+  },
+
+  scrollViewContent: {
+    flexGrow: 1,
   },
 
   skipButton: {
@@ -574,8 +678,9 @@ const styles = StyleSheet.create({
   },
 
   contentContainer: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
   },
 
   stepContainer: {

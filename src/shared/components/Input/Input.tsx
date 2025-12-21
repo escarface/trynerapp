@@ -43,23 +43,15 @@ export const Input: React.FC<InputProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const borderColorAnim = useRef(new Animated.Value(0)).current;
-  const shadowAnim = useRef(new Animated.Value(0)).current;
 
   const hasError = Boolean(error);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(borderColorAnim, {
-        toValue: isFocused ? 1 : 0,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-      Animated.timing(shadowAnim, {
-        toValue: isFocused ? 1 : 0,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-    ]).start();
+    Animated.timing(borderColorAnim, {
+      toValue: isFocused ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
   }, [isFocused]);
 
   const animatedBorderColor = borderColorAnim.interpolate({
@@ -67,14 +59,11 @@ export const Input: React.FC<InputProps> = ({
     outputRange: [colors.neutral.border, hasError ? colors.error[500] : colors.primary[500]],
   });
 
-  const animatedShadowOpacity = shadowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.15],
-  });
-
   const inputContainerStyles = [
     styles.inputContainer,
     !editable && styles.inputContainerDisabled,
+    isFocused && styles.inputContainerFocused,
+    hasError && styles.inputContainerError,
   ];
 
   return (
@@ -92,17 +81,6 @@ export const Input: React.FC<InputProps> = ({
           {
             borderColor: animatedBorderColor,
             borderWidth: isFocused ? borderWidth.medium : borderWidth.thin,
-            ...Platform.select({
-              ios: {
-                shadowColor: hasError ? colors.error[500] : colors.primary[500],
-                shadowOpacity: animatedShadowOpacity,
-                shadowOffset: { width: 0, height: 2 },
-                shadowRadius: 8,
-              },
-              android: {
-                elevation: isFocused ? 3 : 0,
-              },
-            }),
           },
         ]}
       >
@@ -151,7 +129,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral.surface,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    overflow: 'hidden',
+  },
+
+  inputContainerFocused: {
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary[500],
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+
+  inputContainerError: {
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.error[500],
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
 
   inputContainerDisabled: {

@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { createTablesSQL, seedDataSQL, SCHEMA_VERSION } from './schema';
 import { User, CreateUserInput } from './types';
+import { setDatabase } from './workoutOperations';
 
 const DB_NAME = 'trynerapp.db';
 
@@ -22,6 +23,9 @@ export const initDatabase = async (): Promise<void> => {
     // Seed initial data
     await db.execAsync(seedDataSQL);
     console.log('Initial data seeded successfully');
+
+    // Set database instance for workoutOperations
+    setDatabase(db);
 
   } catch (error) {
     console.error('Error initializing database:', error);

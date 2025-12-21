@@ -1,5 +1,6 @@
 export type RootStackParamList = {
   Auth: undefined;
+  Onboarding: undefined;
   Main: undefined;
 };
 
@@ -14,4 +15,11 @@ export type MainTabParamList = {
   Workout: undefined;
   History: undefined;
   Profile: undefined;
+};
+
+export type WorkoutStackParamList = {
+  WorkoutSetup: undefined;
+  PreWorkout: undefined;
+  ActiveWorkout: undefined;
+  WorkoutSummary: undefined;
 };

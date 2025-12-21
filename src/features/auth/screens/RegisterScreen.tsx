@@ -185,7 +185,7 @@ export const RegisterScreen = () => {
                 {
                   translateY: slideAnim.interpolate({
                     inputRange: [0, 50],
-                    outputRange: [0, 30],
+                    outputRange: [30, 0],
                   }),
                 },
               ],

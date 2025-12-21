@@ -13,20 +13,34 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.saredigital.trynerapp",
+      "infoPlist": {
+        "NSMotionUsageDescription": "TrynerApp necesita acceso al acelerómetro para detectar y contar tus repeticiones de ejercicio en tiempo real."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.saredigital.trynerapp",
+      "permissions": [
+        "android.permission.HIGH_SAMPLING_RATE_SENSORS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "TrynerApp necesita acceso al acelerómetro para detectar y contar tus repeticiones de ejercicio en tiempo real."
+        }
+      ]
     ]
   }
 }

@@ -29,6 +29,14 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   label,
   animated = true,
 }) => {
+  // Sanitize value to prevent NaN in CoreGraphics
+  const safeValue = React.useMemo(() => {
+    if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(100, value)); // Clamp between 0-100
+  }, [value]);
+
   const animatedValue = useRef(new Animated.Value(0)).current;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -41,7 +49,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
     return colors.score.acceptable.color;
   };
 
-  const progressColor = color || getScoreColor(value);
+  const progressColor = color || getScoreColor(safeValue);
 
   const getScoreLabel = (score: number): string => {
     if (score >= 85) return colors.score.excellent.label;
@@ -50,20 +58,20 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
     return colors.score.acceptable.label;
   };
 
-  const scoreLabel = label || getScoreLabel(value);
+  const scoreLabel = label || getScoreLabel(safeValue);
 
   useEffect(() => {
     if (animated) {
       Animated.spring(animatedValue, {
-        toValue: value,
+        toValue: safeValue,
         speed: 8,
         bounciness: 6,
         useNativeDriver: true,
       }).start();
     } else {
-      animatedValue.setValue(value);
+      animatedValue.setValue(safeValue);
     }
-  }, [value, animated]);
+  }, [safeValue, animated]);
 
   const strokeDashoffset = animatedValue.interpolate({
     inputRange: [0, 100],
@@ -113,7 +121,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
             },
           ]}
         >
-          {Math.round(value)}
+          {Math.round(safeValue)}
         </Animated.Text>
         <Text variant="caption" style={styles.labelText}>
           {scoreLabel}

@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from './types';
 import HomeScreen from '@/features/home/screens/HomeScreen';
+import { WorkoutNavigator } from './WorkoutNavigator';
 import { colors } from '@/core/theme';
 import Text from '@/shared/components/Text';
 import { View } from 'react-native';
@@ -9,12 +10,6 @@ import { View } from 'react-native';
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // Placeholder screens
-const WorkoutScreen = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <Text variant="h3">Entrenar</Text>
-  </View>
-);
-
 const HistoryScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
     <Text variant="h3">Historial</Text>
@@ -51,7 +46,7 @@ export const MainNavigator = () => {
       />
       <Tab.Screen
         name="Workout"
-        component={WorkoutScreen}
+        component={WorkoutNavigator}
         options={{
           tabBarLabel: 'Entrenar',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>💪</Text>,
